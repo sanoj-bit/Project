@@ -1,20 +1,34 @@
 import mongoose from "mongoose";
 
-let isConnected = false;
+let cached = global.mongoose;
+
+if (!cached) {
+    cached = global.mongoose = { conn: null, promise: null };
+}
 
 const connectDB = async () => {
-    if (isConnected) {
-        return;
+    if (cached.conn) {
+        return cached.conn;
+    }
+
+    if (!cached.promise) {
+        mongoose.connection.on('connected', () => console.log("Database Connected"));
+
+        cached.promise = mongoose.connect(`${process.env.MONGODB_URI}/hotel-booking`, {
+            maxPoolSize: 10,
+        }).then((mongooseInstance) => {
+            return mongooseInstance;
+        });
     }
 
     try {
-        mongoose.connection.on('connected', () => console.log("Database Connected"));
-
-        await mongoose.connect(`${process.env.MONGODB_URI}/hotel-booking`);
-        isConnected = true;
+        cached.conn = await cached.promise;
     } catch (error) {
-        console.log(error.message);
+        cached.promise = null;
+        throw error;
     }
-}
+
+    return cached.conn;
+};
 
 export default connectDB;
