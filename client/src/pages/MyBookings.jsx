@@ -14,7 +14,9 @@ const MyBookings = () => {
     const { data } = await axios.get('/api/bookings/user', {headers: {
       Authorization: `Bearer ${await getToken()}` }})
     if (data.success){
-      setBookings(data.bookings)
+      // Only show bookings for rooms that still exist
+      const validBookings = data.bookings.filter(booking => booking.room && booking.hotel);
+      setBookings(validBookings)
     }else{
       toast.error(data.message)
     }
@@ -22,6 +24,38 @@ const MyBookings = () => {
     toast.error(error.message)
   }
 }
+
+    const payWithEsewa = async (bookingId) => {
+      try {
+        const { data } = await axios.post('/api/payments/esewa/initiate', { bookingId }, {
+          headers: { Authorization: `Bearer ${await getToken()}` }
+        });
+
+        if (!data.success) {
+          toast.error(data.message);
+          return;
+        }
+
+        // Open a new tab and auto-submit the eSewa form there
+        const paymentWindow = window.open('', '_blank');
+        const form = paymentWindow.document.createElement('form');
+        form.method = 'POST';
+        form.action = data.formUrl;
+
+        Object.entries(data.paymentData).forEach(([key, value]) => {
+          const input = paymentWindow.document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = value;
+          form.appendChild(input);
+        });
+
+        paymentWindow.document.body.appendChild(form);
+        form.submit();
+      } catch (error) {
+        toast.error(error.message);
+      }
+    }
 
     useEffect(()=>{
         if(user){
@@ -94,7 +128,7 @@ const MyBookings = () => {
         </p>
     </div>
     {!booking.isPaid && (
-    <button className='px-4 py-1.5 mt-4 text-xs border border-gray-400 rounded-full hover:bg-gray-50 transition-all cursor-pointer'>
+    <button onClick={() => payWithEsewa(booking._id)} className='px-4 py-1.5 mt-4 text-xs border border-gray-400 rounded-full hover:bg-gray-50 transition-all cursor-pointer'>
         Pay Now
     </button>
 )}

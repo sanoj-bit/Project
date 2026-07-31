@@ -71,28 +71,34 @@ export const createBooking = async (req, res) => {
       totalPrice,
     });
 
-    const mailOptions = {
-    from: process.env.SENDER_EMAIL,
-    to: req.user.email,
-    subject: 'Hotel Booking Details',
-    html: `
-        <h2>Your Booking Details</h2>
-        <p>Dear ${req.user.username},</p>
-        <p>Thank you for your booking! Here are your details:</p>
-        <ul>
-            <li><strong>Booking ID:</strong> ${booking._id}</li>
-            <li><strong>Hotel Name:</strong> ${roomData.hotel.name}</li>
-            <li><strong>Location:</strong> ${roomData.hotel.address}</li>
-            <li><strong>Date:</strong> ${booking.checkInDate.toDateString()}</li>
-            <li><strong>Booking Amount:</strong> ${process.env.CURRENCY || '$'} ${booking.totalPrice} /night</li>
-        </ul>
-        <p>We look forward to welcoming you!</p>
-        <p>If you need to make any changes, feel free to contact us.</p>
-        `
-}
-    await transporter.sendMail(mailOptions)
-
+    // Respond immediately so the user isn't kept waiting on the email
     res.json({ success: true, message: "Booking created successfully" });
+
+    // Send confirmation email in the background (doesn't block the response)
+    const mailOptions = {
+      from: process.env.SENDER_EMAIL,
+      to: req.user.email,
+      subject: 'Hotel Booking Details',
+      html: `
+          <h2>Your Booking Details</h2>
+          <p>Dear ${req.user.username},</p>
+          <p>Thank you for your booking! Here are your details:</p>
+          <ul>
+              <li><strong>Booking ID:</strong> ${booking._id}</li>
+              <li><strong>Hotel Name:</strong> ${roomData.hotel.name}</li>
+              <li><strong>Location:</strong> ${roomData.hotel.address}</li>
+              <li><strong>Date:</strong> ${booking.checkInDate.toDateString()}</li>
+              <li><strong>Booking Amount:</strong> ${process.env.CURRENCY || '$'} ${booking.totalPrice} /night</li>
+          </ul>
+          <p>We look forward to welcoming you!</p>
+          <p>If you need to make any changes, feel free to contact us.</p>
+          `
+    };
+
+    transporter.sendMail(mailOptions).catch((error) => {
+      console.log("Failed to send booking confirmation email:", error.message);
+    });
+
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: "Failed to create booking" });
@@ -121,11 +127,14 @@ export const getHotelBookings = async (req, res) => {
 
     const bookings = await Booking.find({ hotel: hotel._id }).populate("room hotel user").sort({ createdAt: -1 });
 
-    // Total Bookings
-    const totalBookings = bookings.length;
+    // Exclude cancelled bookings from stats
+    const activeBookings = bookings.filter(booking => booking.status !== 'cancelled');
 
-    // Total Revenue
-    const totalRevenue = bookings.reduce((acc, booking) => acc + booking.totalPrice, 0);
+    // Total Bookings (active only)
+    const totalBookings = activeBookings.length;
+
+    // Total Revenue (active only)
+    const totalRevenue = activeBookings.reduce((acc, booking) => acc + booking.totalPrice, 0);
 
     res.json({ success: true, dashboardData: { totalBookings, totalRevenue, bookings } });
   } catch (error) {
@@ -133,32 +142,58 @@ export const getHotelBookings = async (req, res) => {
   }
 }
 
-export const stripePayment = async (req, res)=>{
-    try {
-        const { bookingId } = req.body;
+// API to cancel a booking
+// POST /api/bookings/cancel
+export const cancelBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.body;
 
-        const booking = await Booking.findById(bookingId);
-        const roomData = await Room.findById(booking.room).populate('hotel');
-        const totalPrice = booking.totalPrice;
-        const { origin } = req.headers;
-
-        const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
-
-        const line_items = [
-    {
-        price_data:{
-            currency: "usd",
-            product_data:{
-                name: roomData.hotel.name,
-            },
-            unit_amount: totalPrice * 100
-        },
-        quantity: 1,
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.json({ success: false, message: "Booking not found" });
     }
-]
 
-
-    } catch (error) {
-
+    // Verify the logged-in user actually owns the hotel this booking belongs to
+    const hotel = await Hotel.findOne({ owner: req.auth().userId });
+    if (!hotel || booking.hotel.toString() !== hotel._id.toString()) {
+      return res.json({ success: false, message: "Not authorized to cancel this booking" });
     }
-}
+
+    booking.status = "cancelled";
+    await booking.save();
+
+    res.json({ success: true, message: "Booking cancelled successfully" });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// API to permanently delete a cancelled booking
+// POST /api/bookings/delete
+export const deleteBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.body;
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.json({ success: false, message: "Booking not found" });
+    }
+
+    // Verify the logged-in user actually owns the hotel this booking belongs to
+    const hotel = await Hotel.findOne({ owner: req.auth().userId });
+    if (!hotel || booking.hotel.toString() !== hotel._id.toString()) {
+      return res.json({ success: false, message: "Not authorized to delete this booking" });
+    }
+
+    // Only allow deleting bookings that are already cancelled
+    if (booking.status !== "cancelled") {
+      return res.json({ success: false, message: "Only cancelled bookings can be deleted" });
+    }
+
+    await Booking.findByIdAndDelete(bookingId);
+
+    res.json({ success: true, message: "Booking deleted successfully" });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};

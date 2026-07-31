@@ -11,6 +11,8 @@ import Layout from './pages/hotelOwner/Layout';
 import Dashboard from './pages/hotelOwner/Dashboard';
 import AddRoom from './pages/hotelOwner/AddRoom';
 import ListRoom from './pages/hotelOwner/ListRoom';
+import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentFailed from './pages/PaymentFailed';
 import {Toaster} from 'react-hot-toast'
 import { useAppContext } from './context/AppContext';
 
@@ -31,6 +33,8 @@ const App = () => {
     <Route path='/rooms' element={<AllRooms/>} />
     <Route path='/rooms/:id' element={<RoomDetails/>} />
     <Route path='/my-bookings' element={<MyBookings/>} />
+    <Route path='/payment-success' element={<PaymentSuccess/>} />
+    <Route path='/payment-failed' element={<PaymentFailed/>} />
     <Route path='/owner' element={<Layout />}>
        <Route index element={<Dashboard />} />
        <Route path="add-room" element={<AddRoom />} />
