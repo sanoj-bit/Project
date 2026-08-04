@@ -38,6 +38,31 @@ export const createBooking = async (req, res) => {
     const { room, checkInDate, checkOutDate, guests } = req.body;
     const user = req.user._id;
 
+    // Validate inputs
+    if (!room || !checkInDate || !checkOutDate) {
+      return res.json({ success: false, message: "Missing booking details" });
+    }
+
+    const guestCount = +guests;
+    if (!guests || isNaN(guestCount) || guestCount < 1) {
+      return res.json({ success: false, message: "Guests must be at least 1" });
+    }
+
+    const checkInTest = new Date(checkInDate);
+    const checkOutTest = new Date(checkOutDate);
+    if (isNaN(checkInTest) || isNaN(checkOutTest)) {
+      return res.json({ success: false, message: "Invalid check-in or check-out date" });
+    }
+    if (checkOutTest <= checkInTest) {
+      return res.json({ success: false, message: "Check-out date must be after check-in date" });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (checkInTest < today) {
+      return res.json({ success: false, message: "Check-in date cannot be in the past" });
+    }
+
     // Before Booking Check Availability
     const isAvailable = await checkAvailability({
       checkInDate,
@@ -51,6 +76,10 @@ export const createBooking = async (req, res) => {
 
     // Get totalPrice from Room
     const roomData = await Room.findById(room).populate("hotel");
+    if (!roomData) {
+      return res.json({ success: false, message: "Room not found" });
+    }
+
     let totalPrice = roomData.pricePerNight;
 
     // Calculate totalPrice based on nights
@@ -65,7 +94,7 @@ export const createBooking = async (req, res) => {
       user,
       room,
       hotel: roomData.hotel._id,
-      guests: +guests,
+      guests: guestCount,
       checkInDate,
       checkOutDate,
       totalPrice,

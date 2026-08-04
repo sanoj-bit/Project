@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 
 const MyBookings = () => {
 
-    const { axios, getToken, user } = useAppContext()
+    const { axios, getToken, user, currency } = useAppContext()
     const [bookings, setBookings] = useState([])
 
     const fetchUserBookings = async ()=>{
@@ -97,7 +97,7 @@ const MyBookings = () => {
                   alt="guests-icon"/> 
                   <span>Guests: {booking.guests}</span>
                 </div>
-                <p className='text-base font-bold'>$ {booking.totalPrice.toFixed(2)}</p>
+                <p className='text-base font-bold'>{currency} {booking.totalPrice.toFixed(2)}</p>
             </div>
         </div>
         

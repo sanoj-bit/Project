@@ -11,6 +11,8 @@ import connectCloudinary from "./configs/cloudinary.js";
 import roomRouter from "./routes/roomRoutes.js";
 import bookingRouter from "./routes/bookingRoutes.js";
 import paymentRouter from "./routes/paymentRoutes.js";
+import reviewRouter from "./routes/reviewRoutes.js";
+import newsletterRouter from "./routes/newsletterRoutes.js";
 
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 
@@ -33,6 +35,8 @@ app.use('/api/hotels', hotelRouter)
 app.use('/api/rooms', roomRouter)
 app.use('/api/bookings', bookingRouter)
 app.use('/api/payments', paymentRouter)
+app.use('/api/reviews', reviewRouter)
+app.use('/api/newsletter', newsletterRouter)
 
 const PORT = process.env.PORT || 3000;
 

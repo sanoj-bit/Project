@@ -25,7 +25,7 @@ const RadioButton = ({ label, selected = false, onChange = () => {} }) => {
 const AllRooms = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const { rooms, navigate, currency } = useAppContext();
+  const { rooms, navigate, currency, roomsLoading } = useAppContext();
 
   const [openFilters, setOpenFilters] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState({
@@ -131,7 +131,15 @@ const AllRooms = () => {
           </p>
         </div>
 
-        {filteredRooms.map((room) => (
+        {roomsLoading ? (
+          <div className='flex items-center gap-2 text-gray-500 mt-10'>
+            <div className='w-4 h-4 border-2 border-gray-300 border-t-primary rounded-full animate-spin'></div>
+            Loading rooms...
+          </div>
+        ) : filteredRooms.length === 0 ? (
+          <p className='text-gray-500 mt-10'>No rooms match your filters. Try adjusting or clearing them.</p>
+        ) : (
+        filteredRooms.map((room) => (
           <div key={room._id} className='flex flex-col md:flex-row items-start py-10 gap-6 border-b border-gray-300 last:pb-30 last:border-0'>
             <img
               onClick={() => { navigate(`/rooms/${room._id}`); window.scrollTo(0, 0); }}
@@ -167,10 +175,11 @@ const AllRooms = () => {
                 ))}
               </div>
 
-              <p className='text-xl font-medium text-gray-700'>${room.pricePerNight} /night</p>
+              <p className='text-xl font-medium text-gray-700'>{currency} {room.pricePerNight} /night</p>
             </div>
           </div>
-        ))}
+        ))
+        )}
       </div>
 
       {/* Filters */}
@@ -181,7 +190,7 @@ const AllRooms = () => {
             <span onClick={() => setOpenFilters(!openFilters)} className='lg:hidden'>
               {openFilters ? 'HIDE' : 'SHOW'}
             </span>
-            <span className='hidden lg:block'>CLEAR</span>
+            <span onClick={clearFilters} className='hidden lg:block'>CLEAR</span>
           </div>
         </div>
 

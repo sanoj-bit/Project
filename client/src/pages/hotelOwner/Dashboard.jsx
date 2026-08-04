@@ -13,6 +13,7 @@ const Dashboard = () => {
     totalBookings: 0,
     totalRevenue: 0,
   });
+  const [loading, setLoading] = useState(true);
 
   const fetchDashboardData = async () => {
     try {
@@ -27,6 +28,8 @@ const Dashboard = () => {
       }
     } catch (error) {
       toast.error(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -128,6 +131,14 @@ const Dashboard = () => {
       {/* ---- Recent Bookings ---- */}
       <h2 className='text-xl text-blue-950/70 font-medium mb-5'>Recent Bookings</h2>
 
+      {loading ? (
+        <div className='flex items-center gap-2 text-gray-500'>
+          <div className='w-4 h-4 border-2 border-gray-300 border-t-primary rounded-full animate-spin'></div>
+          Loading bookings...
+        </div>
+      ) : dashboardData.bookings.length === 0 ? (
+        <p className='text-gray-500'>No bookings yet. Once guests start booking your rooms, they'll show up here.</p>
+      ) : (
       <div className='w-full max-w-3xl text-left border border-gray-300 rounded-lg max-h-80 overflow-y-scroll'>
         <table className='w-full'>
           <thead className='bg-gray-50'>
@@ -183,6 +194,7 @@ const Dashboard = () => {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 };

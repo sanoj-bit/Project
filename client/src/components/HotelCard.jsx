@@ -1,8 +1,12 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { assets } from '../assets/assets'
+import { useAppContext } from '../context/AppContext'
+import StarRating from './StarRating'
 
 const HotelCard = ({room, index}) => {
+  const { currency } = useAppContext()
+
   return (
     <Link to={'/rooms/' + room._id} onClick={() => scrollTo(0,0)} key={room._id}
      className='relative max-w-70 w-full
@@ -18,15 +22,18 @@ const HotelCard = ({room, index}) => {
                 <p className='font-playfair text-xl font-medium text-gray-800'>
                 {room.hotel.name}</p>
                 <div className='flex items-center gap-1'>
-                    <img src={assets.starIconFilled} alt="star-icon" /> 4.5
+                    <img src={assets.starIconFilled} alt="star-icon" /> {room.averageRating > 0 ? room.averageRating : 'New'}
                 </div>
             </div>
             <div className='flex items-center gap-1 text-sm'>
                <img src={assets.locationIcon} alt="location-icon" />
                 <span>{room.hotel.address}</span>
            </div>
+           {room.totalReviews > 0 && (
+             <p className='text-xs text-gray-400 mt-1'>{room.totalReviews} review{room.totalReviews !== 1 ? 's' : ''}</p>
+           )}
                 <div className='flex items-center justify-between mt-4'>
-                    <p><span className='text-xl text-gray-800'>${room.pricePerNight}</span>/night</p>
+                    <p><span className='text-xl text-gray-800'>{currency}{room.pricePerNight}</span>/night</p>
                     <button className='px-4 py-2 text-sm font-medium border border-gray-300 rounded hover:bg-gray-50 transition-all cursor-pointer'>Book Now</button>
                     </div>
            </div>

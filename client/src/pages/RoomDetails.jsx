@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 
 const RoomDetails = () => {
   const {id} = useParams()
-  const {rooms, getToken, axios, navigate} = useAppContext()
+  const {rooms, getToken, axios, navigate, currency, user} = useAppContext()
   const [room, setRoom] = useState(null)
   const [mainImage, setMainImage] = useState(null)
   const [checkInDate, setCheckInDate] = useState(null);
@@ -15,6 +15,15 @@ const RoomDetails = () => {
   const [guests, setGuests] = useState(1);
 
   const [isAvailable, setIsAvailable] = useState(false);
+
+  // Reviews state
+  const [reviews, setReviews] = useState([]);
+  const [averageRating, setAverageRating] = useState(0);
+  const [totalReviews, setTotalReviews] = useState(0);
+  const [canReview, setCanReview] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   // Check if the Room is Available
   const checkAvailability = async ()=>{
@@ -63,12 +72,105 @@ if(!isAvailable){
     }
   }
 
+  // Fetch reviews for this room
+  const fetchReviews = async () => {
+    try {
+      const { data } = await axios.get(`/api/reviews/${id}`)
+      if (data.success) {
+        setReviews(data.reviews)
+        setAverageRating(data.averageRating)
+        setTotalReviews(data.totalReviews)
+      }
+    } catch (error) {
+      console.log(error.message)
+    }
+  }
+
+  // Check if the logged-in user is allowed to leave a review
+  const checkCanReview = async () => {
+    try {
+      const { data } = await axios.get(`/api/reviews/can-review/${id}`, {
+        headers: { Authorization: `Bearer ${await getToken()}` }
+      })
+      if (data.success) {
+        setCanReview(data.canReview)
+      }
+    } catch (error) {
+      console.log(error.message)
+    }
+  }
+
+  // Submit a new review
+  const submitReview = async (e) => {
+    e.preventDefault()
+    if (!reviewComment.trim()) {
+      toast.error('Please write a comment')
+      return
+    }
+
+    setSubmittingReview(true)
+    try {
+      const { data } = await axios.post('/api/reviews', {
+        roomId: id,
+        rating: reviewRating,
+        comment: reviewComment,
+      }, {
+        headers: { Authorization: `Bearer ${await getToken()}` }
+      })
+
+      if (data.success) {
+        toast.success(data.message)
+        setReviewComment('')
+        setReviewRating(5)
+        setCanReview(false)
+        fetchReviews()
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      toast.error(error.message)
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
+
+  // Delete a review (only visible/allowed for the reviewer's own review)
+  const deleteReview = async (reviewId) => {
+    const confirmed = window.confirm("Delete this review? This cannot be undone.")
+    if (!confirmed) return
+
+    try {
+      const { data } = await axios.post('/api/reviews/delete', { reviewId }, {
+        headers: { Authorization: `Bearer ${await getToken()}` }
+      })
+
+      if (data.success) {
+        toast.success(data.message)
+        fetchReviews()
+        checkCanReview()
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
 
   useEffect(()=>{
     const room = rooms.find(room => room._id === id)
     room && setRoom(room)
     room && setMainImage(room.images[0])
-  },[rooms])
+  },[rooms, id])
+
+  useEffect(() => {
+    fetchReviews()
+  }, [id])
+
+  useEffect(() => {
+    if (user) {
+      checkCanReview()
+    }
+  }, [user, id])
 
   return room && (
     <div className='py-28 md:py-35 px-4 md:px-16 lg:px-24 xl:px-32'>
@@ -82,8 +184,8 @@ if(!isAvailable){
 
     {/* Room Raiting */}
     <div className='flex items-center gap-1 mt-2'>
-    <StarRating />
-    <p className='ml-2'>200+ reviews</p>
+    <StarRating rating={Math.round(averageRating)} />
+    <p className='ml-2'>{totalReviews > 0 ? `${totalReviews} review${totalReviews !== 1 ? 's' : ''}` : 'No reviews yet'}</p>
     </div>
 
     {/* Room Address */}
@@ -120,7 +222,7 @@ if(!isAvailable){
         </div>
     </div>
     {/* Room Price */}
-    <p className ='text-2xl font-meduim'>${room.pricePerNight}/Night</p>
+    <p className ='text-2xl font-meduim'>{currency}{room.pricePerNight}/Night</p>
 </div>
 
    {/* CheckIn CheckOut Form */}
@@ -194,14 +296,86 @@ if(!isAvailable){
         <div>
             <p className='text-lg md:text-xl'>Hosted by {room.hotel.name}</p>
             <div className='flex items-center mt-1'>
-                <StarRating />
-                <p className='ml-2'>200+ reviews</p>
+                <StarRating rating={Math.round(averageRating)} />
+                <p className='ml-2'>{totalReviews > 0 ? `${totalReviews} review${totalReviews !== 1 ? 's' : ''}` : 'No reviews yet'}</p>
             </div>
         </div>
     </div>
     <button className='px-6 py-2.5 mt-4 rounded text-white bg-primary hover:bg-primary-dull transition-all cursor-pointer'>Contact Now</button>
 </div>
 
+    {/* Reviews Section */}
+    <div className='max-w-3xl mt-16 border-t border-gray-300 pt-10'>
+      <h2 className='text-2xl font-playfair mb-6'>Guest Reviews</h2>
+
+      {canReview && (
+        <form onSubmit={submitReview} className='mb-10 p-5 border border-gray-300 rounded-xl'>
+          <p className='font-medium text-gray-800 mb-2'>Leave a review</p>
+
+          <div className='flex items-center gap-1 mb-3'>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <img
+                key={star}
+                onClick={() => setReviewRating(star)}
+                src={reviewRating >= star ? assets.starIconFilled : assets.starIconOutlined}
+                alt="star"
+                className='w-6 h-6 cursor-pointer'
+              />
+            ))}
+          </div>
+
+          <textarea
+            value={reviewComment}
+            onChange={(e) => setReviewComment(e.target.value)}
+            placeholder='Share your experience with this room...'
+            rows={3}
+            className='w-full border border-gray-300 rounded p-3 outline-none text-sm'
+          />
+
+          <button
+            type='submit'
+            disabled={submittingReview}
+            className='mt-3 bg-primary hover:bg-primary-dull text-white px-6 py-2 rounded transition-all cursor-pointer'
+          >
+            {submittingReview ? 'Submitting...' : 'Submit Review'}
+          </button>
+        </form>
+      )}
+
+      {reviews.length === 0 ? (
+        <p className='text-gray-500'>No reviews yet. Be the first to share your experience after your stay.</p>
+      ) : (
+        <div className='space-y-6'>
+          {reviews.map((review) => (
+            <div key={review._id} className='flex gap-4 pb-6 border-b border-gray-200 last:border-0'>
+              <img
+                src={review.user?.image || assets.uploadArea}
+                alt={review.user?.username}
+                className='w-10 h-10 rounded-full object-cover'
+              />
+              <div className='flex-1'>
+                <div className='flex items-center justify-between'>
+                  <p className='font-medium text-gray-800'>{review.user?.username || 'Anonymous'}</p>
+                  {user && review.user?._id === user.id && (
+                    <button
+                      onClick={() => deleteReview(review._id)}
+                      className='text-red-500 hover:text-red-700 text-xs font-medium border border-red-300 rounded px-3 py-1 hover:bg-red-50 transition-all cursor-pointer'
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+                <div className='flex items-center gap-1 mt-1'>
+                  <StarRating rating={review.rating} />
+                </div>
+                <p className='text-gray-500 mt-2 text-sm'>{review.comment}</p>
+                <p className='text-gray-400 text-xs mt-1'>{new Date(review.createdAt).toDateString()}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
 
     </div>
   )

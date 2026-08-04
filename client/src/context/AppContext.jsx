@@ -19,6 +19,7 @@ export const AppProvider = ({ children }) => {
   const [ShowHotelReg, setShowHotelReg] = useState(false);
   const [searchedCities, setSearchedCities] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [roomsLoading, setRoomsLoading] = useState(true);
 
   const fetchRooms = async () => {
     try {
@@ -30,6 +31,8 @@ export const AppProvider = ({ children }) => {
       }
     } catch (error) {
       toast.error(error.message);
+    } finally {
+      setRoomsLoading(false);
     }
   };
 
@@ -66,7 +69,7 @@ export const AppProvider = ({ children }) => {
   const value = {
     currency, navigate, user, getToken, isOwner, setIsOwner, axios,
     ShowHotelReg, setShowHotelReg, searchedCities,
-    setSearchedCities, rooms, setRooms
+    setSearchedCities, rooms, setRooms, roomsLoading
   };
 
   return (
