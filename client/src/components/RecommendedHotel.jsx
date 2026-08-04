@@ -9,7 +9,14 @@ const RecommendedHotel = () => {
   const [recommended, setRecommended] = useState([]);
 
   const filterHotels = ()=>{
-    const filteredHotels = rooms.slice().filter( room => searchedCities.includes(room.hotel.city));
+    if (searchedCities.length === 0) {
+      setRecommended([]);
+      return;
+    }
+
+    // Only match the most recently searched city, not the entire history
+    const mostRecentCity = searchedCities[searchedCities.length - 1];
+    const filteredHotels = rooms.slice().filter( room => room.hotel.city === mostRecentCity);
     setRecommended(filteredHotels);
 }
 
