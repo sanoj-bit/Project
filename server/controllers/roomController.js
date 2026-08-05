@@ -8,10 +8,17 @@ const VALID_ROOM_TYPES = ["Single Bed", "Double Bed", "Luxury Room", "Family Sui
 // API to create a new room for a hotel
 export const createRoom = async (req, res) => {
   try {
-    const { roomType, pricePerNight, amenities } = req.body;
-    const hotel = await Hotel.findOne({ owner: req.auth().userId });
+    const { roomType, pricePerNight, amenities, hotelId } = req.body;
 
-    if (!hotel) return res.json({ success: false, message: "No Hotel found" });
+    // If the owner has multiple hotels, they must specify which one; otherwise default to their only one
+    const ownerHotels = await Hotel.find({ owner: req.auth().userId });
+    if (ownerHotels.length === 0) return res.json({ success: false, message: "No Hotel found" });
+
+    const hotel = hotelId
+      ? ownerHotels.find(h => h._id.toString() === hotelId)
+      : ownerHotels[0];
+
+    if (!hotel) return res.json({ success: false, message: "Hotel not found or not owned by you" });
 
     // Validate inputs
     if (!roomType || !VALID_ROOM_TYPES.includes(roomType)) {
@@ -97,9 +104,10 @@ export const getRoomById = async (req, res) => {
     const roomData = await Room.findById(roomId).populate("hotel");
     if (!roomData) return res.json({ success: false, message: "Room not found" });
 
-    // Verify the logged-in user actually owns the hotel this room belongs to
-    const hotel = await Hotel.findOne({ owner: req.auth().userId });
-    if (!hotel || roomData.hotel._id.toString() !== hotel._id.toString()) {
+    // Verify the logged-in user owns the hotel this room belongs to (across all their hotels)
+    const ownerHotels = await Hotel.find({ owner: req.auth().userId });
+    const ownsThisRoom = ownerHotels.some(h => h._id.toString() === roomData.hotel._id.toString());
+    if (!ownsThisRoom) {
       return res.json({ success: false, message: "Not authorized to view this room" });
     }
 
@@ -109,11 +117,13 @@ export const getRoomById = async (req, res) => {
   }
 };
 
-// API to get all rooms for a specific hotel
+// API to get all rooms across all hotels owned by this user
 export const getRoomsByHotel = async (req, res) => {
   try {
-    const hotelData = await Hotel.findOne({ owner: req.auth().userId });
-    const rooms = await Room.find({ hotel: hotelData._id.toString() }).populate("hotel");
+    const ownerHotels = await Hotel.find({ owner: req.auth().userId });
+    const hotelIds = ownerHotels.map(h => h._id.toString());
+
+    const rooms = await Room.find({ hotel: { $in: hotelIds } }).populate("hotel");
 
     res.json({ success: true, rooms });
   } catch (error) {
@@ -143,9 +153,10 @@ export const updateRoom = async (req, res) => {
     const roomData = await Room.findById(roomId);
     if (!roomData) return res.json({ success: false, message: "Room not found" });
 
-    // Verify the logged-in user actually owns the hotel this room belongs to
-    const hotel = await Hotel.findOne({ owner: req.auth().userId });
-    if (!hotel || roomData.hotel.toString() !== hotel._id.toString()) {
+    // Verify the logged-in user owns the hotel this room belongs to (across all their hotels)
+    const ownerHotels = await Hotel.find({ owner: req.auth().userId });
+    const ownsThisRoom = ownerHotels.some(h => h._id.toString() === roomData.hotel.toString());
+    if (!ownsThisRoom) {
       return res.json({ success: false, message: "Not authorized to update this room" });
     }
 
@@ -191,9 +202,10 @@ export const deleteRoom = async (req, res) => {
     const roomData = await Room.findById(roomId);
     if (!roomData) return res.json({ success: false, message: "Room not found" });
 
-    // Verify the logged-in user actually owns the hotel this room belongs to
-    const hotel = await Hotel.findOne({ owner: req.auth().userId });
-    if (!hotel || roomData.hotel.toString() !== hotel._id.toString()) {
+    // Verify the logged-in user owns the hotel this room belongs to (across all their hotels)
+    const ownerHotels = await Hotel.find({ owner: req.auth().userId });
+    const ownsThisRoom = ownerHotels.some(h => h._id.toString() === roomData.hotel.toString());
+    if (!ownsThisRoom) {
       return res.json({ success: false, message: "Not authorized to delete this room" });
     }
 

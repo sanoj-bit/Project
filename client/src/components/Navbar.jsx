@@ -24,7 +24,7 @@ const Navbar = () => {
     const {openSignIn} = useClerk()
 const location = useLocation()
 
-const {user, navigate, isOwner, setShowHotelReg} = useAppContext()
+const {user, navigate, isOwner, isOwnerLoading, setShowHotelReg} = useAppContext()
 
     useEffect(() => {
 
@@ -61,7 +61,7 @@ const {user, navigate, isOwner, setShowHotelReg} = useAppContext()
                         </a>
                     ))}
 
-                    { user && (
+                    { user && !isOwnerLoading && (
                         <button className={`border px-4 py-1 text-sm font-light rounded-full cursor-pointer ${isScrolled ? 'text-black' : 'text-white'} transition-all`}
                          onClick={()=> isOwner ? navigate
                         ('/owner') : setShowHotelReg(true)}>
@@ -118,7 +118,7 @@ const {user, navigate, isOwner, setShowHotelReg} = useAppContext()
                         </a>
                     ))}
 
-                   {user && <button className="border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all"
+                   {user && !isOwnerLoading && <button className="border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all"
                     onClick={()=> isOwner ? navigate
                     ('/owner') : setShowHotelReg(true)}>
                      {isOwner ? 'Dashboard' : 'List Your Hotel'}

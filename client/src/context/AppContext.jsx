@@ -16,6 +16,7 @@ export const AppProvider = ({ children }) => {
   const { getToken } = useAuth();
 
   const [isOwner, setIsOwner] = useState(false);
+  const [isOwnerLoading, setIsOwnerLoading] = useState(true);
   const [ShowHotelReg, setShowHotelReg] = useState(false);
   const [searchedCities, setSearchedCities] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -38,28 +39,51 @@ export const AppProvider = ({ children }) => {
 
   const fetchUser = async () => {
     try {
+      setIsOwnerLoading(true);
+
+      if (!user) {
+        setIsOwner(false);
+        setSearchedCities([]);
+        setIsOwnerLoading(false);
+        return;
+      }
+
       const { data } = await axios.get('/api/user', {
         headers: { Authorization: `Bearer ${await getToken()}` }
       });
 
       if (data.success) {
         setIsOwner(data.role === "hotelOwner");
-        setSearchedCities(data.recentSearchedCities);
+        setSearchedCities(data.recentSearchedCities || []);
       } else {
+        setIsOwner(false);
+        setSearchedCities([]);
         // Retry fetching User Details after 5 seconds
         setTimeout(() => {
           fetchUser();
         }, 5000);
       }
     } catch (error) {
+      setIsOwner(false);
+      setSearchedCities([]);
       toast.error(error.message);
+    } finally {
+      setIsOwnerLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user) {
-      fetchUser();
+    setIsOwner(false);
+    setIsOwnerLoading(true);
+
+    if (!user) {
+      setIsOwner(false);
+      setSearchedCities([]);
+      setIsOwnerLoading(false);
+      return;
     }
+
+    fetchUser();
   }, [user]);
 
   useEffect(() => {
@@ -67,7 +91,7 @@ export const AppProvider = ({ children }) => {
   }, [user]);
 
   const value = {
-    currency, navigate, user, getToken, isOwner, setIsOwner, axios,
+    currency, navigate, user, getToken, isOwner, isOwnerLoading, setIsOwner, fetchUser, axios,
     ShowHotelReg, setShowHotelReg, searchedCities,
     setSearchedCities, rooms, setRooms, roomsLoading
   };
