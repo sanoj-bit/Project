@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { assets } from '../../assets/assets'
 import Title from '../../components/Title'
 import { useAppContext } from '../../context/AppContext'
@@ -7,6 +7,27 @@ import toast from 'react-hot-toast'
 const AddRoom = () => {
 
   const {axios, getToken }= useAppContext()
+
+    const [hotels, setHotels] = useState([])
+    const [selectedHotel, setSelectedHotel] = useState('')
+
+    const fetchMyHotels = async () => {
+      try {
+        const { data } = await axios.get('/api/hotels/mine', {headers: {Authorization: `Bearer ${await getToken()}`}})
+        if (data.success) {
+          setHotels(data.hotels)
+          if (data.hotels.length > 0) setSelectedHotel(data.hotels[0]._id)
+        } else {
+          toast.error(data.message)
+        }
+      } catch (error) {
+        toast.error(error.message)
+      }
+    }
+
+    useEffect(() => {
+      fetchMyHotels()
+    }, [])
 
     const [images, setImages] = useState({
         1: null,
@@ -31,13 +52,14 @@ const AddRoom = () => {
     const onSubmitHandler = async (e)=>{
   e.preventDefault()
   // Check if all inputs are filled
-  if(!inputs.roomType || !inputs.pricePerNight || !inputs.amenities || !Object.values(images).some(image => image)){
+  if(!selectedHotel || !inputs.roomType || !inputs.pricePerNight || !inputs.amenities || !Object.values(images).some(image => image)){
        toast.error("Please fill in all the details")
        return;
   }
   setLoading(true);
   try {
   const formData = new FormData()
+  formData.append('hotelId', selectedHotel)
   formData.append('roomType', inputs.roomType)
   formData.append('pricePerNight', inputs.pricePerNight)
   // Converting Amenities to Array & keeping only enabled Amenities
@@ -82,6 +104,17 @@ const AddRoom = () => {
 <form onSubmit={onSubmitHandler}>
   <Title align='left' font='outfit' title='Add Room' subTitle='Fill in the details carefully and accurate room details, pricing, and 
   amenities, to enhance the user booking experience.' />
+
+  <div className='flex-1 max-w-48'>
+    <p className='text-gray-800 mt-4'>Hotel</p>
+    <select value={selectedHotel} onChange={e=> setSelectedHotel(e.target.value)} className='border opacity-70 border-gray-300 mt-1 rounded p-2 w-full'>
+       {hotels.length === 0 && <option value="">No hotels registered yet</option>}
+       {hotels.map((hotel)=>(
+         <option key={hotel._id} value={hotel._id}>{hotel.name} — {hotel.city}</option>
+       ))}
+    </select>
+  </div>
+
   {/* * Upload Area For Images */}
   <p className='text-gray-800 mt-10'>Images</p>
   <div className='grid grid-cols-2 sm:flex gap-4 my-2 flex-wrap'>
