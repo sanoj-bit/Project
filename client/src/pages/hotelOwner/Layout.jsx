@@ -5,13 +5,17 @@ import { Outlet } from 'react-router-dom'
 import { useAppContext } from '../../context/AppContext'
 
 const Layout = () => {
-  const {isOwner, navigate} = useAppContext()
+  const {isOwner, isOwnerLoading, navigate} = useAppContext()
 
   useEffect(()=>{
-  if(!isOwner){
+  // Wait until the owner-status check has actually finished before
+  // deciding to redirect - otherwise this fires on the default `false`
+  // value while fetchUser() is still loading, kicking owners back to
+  // home before their real role comes back from the server.
+  if(!isOwnerLoading && !isOwner){
     navigate('/')
   }
-},[isOwner])
+},[isOwner, isOwnerLoading])
 
   return (
     <div className='flex flex-col h-screen'>
