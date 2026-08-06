@@ -172,6 +172,17 @@ if(!isAvailable){
     }
   }, [user, id])
 
+  // If the hotel this room belonged to was deleted, room.hotel will be
+  // null - show a friendly message instead of crashing on room.hotel.name
+  if (room && !room.hotel) {
+    return (
+      <div className='flex flex-col items-center justify-center py-40 text-center px-6'>
+        <p className='text-xl font-playfair text-gray-700'>This room is no longer available.</p>
+        <p className='text-gray-500 mt-2'>The hotel it belonged to has been removed.</p>
+      </div>
+    )
+  }
+
   return room && (
     <div className='py-28 md:py-35 px-4 md:px-16 lg:px-24 xl:px-32'>
     {/* Room Details */}
@@ -292,7 +303,7 @@ if(!isAvailable){
    {/* Hosted by */}
    <div className='flex flex-col items-start gap-4'>
     <div className='flex gap-4'>
-        <img src={room.hotel.owner.image} alt="Host" className='h-14 w-14 md:h-18 md:w-18 rounded-full' />
+        <img src={room.hotel.owner?.image} alt="Host" className='h-14 w-14 md:h-18 md:w-18 rounded-full' />
         <div>
             <p className='text-lg md:text-xl'>Hosted by {room.hotel.name}</p>
             <div className='flex items-center mt-1'>

@@ -105,9 +105,11 @@ const AllRooms = () => {
     return room.hotel.city.toLowerCase().includes(destination.toLowerCase());
   };
 
-  // Filter and sort rooms based on the selected filters and sort option
+  // Filter and sort rooms based on the selected filters and sort option.
+  // room.hotel can be null if the hotel it belonged to was deleted while
+  // the room record was left behind - skip those instead of crashing.
   const filteredRooms = useMemo(() => {
-    return rooms.filter(room => matchesRoomType(room) && matchesPriceRange(room) && filterDestination(room)).sort(sortRooms);
+    return rooms.filter(room => room.hotel && matchesRoomType(room) && matchesPriceRange(room) && filterDestination(room)).sort(sortRooms);
   }, [rooms, selectedFilters, selectedSort, searchParams]);
 
   // Clear all filters

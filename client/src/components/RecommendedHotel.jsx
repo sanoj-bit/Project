@@ -16,7 +16,7 @@ const RecommendedHotel = () => {
 
     // Only match the most recently searched city, not the entire history
     const mostRecentCity = searchedCities[searchedCities.length - 1];
-    const filteredHotels = rooms.slice().filter( room => room.hotel.city === mostRecentCity);
+    const filteredHotels = rooms.slice().filter( room => room.hotel && room.hotel.city === mostRecentCity);
     setRecommended(filteredHotels);
 }
 

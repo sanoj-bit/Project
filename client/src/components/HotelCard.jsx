@@ -6,6 +6,10 @@ import StarRating from './StarRating'
 const HotelCard = ({room, index}) => {
   const { currency } = useAppContext()
 
+  // Defensive guard: if the hotel this room belonged to was deleted,
+  // room.hotel will be null. Skip rendering the card instead of crashing.
+  if (!room.hotel) return null
+
   return (
     <Link to={'/rooms/' + room._id} onClick={() => scrollTo(0,0)} key={room._id}
      className='relative max-w-70 w-full
