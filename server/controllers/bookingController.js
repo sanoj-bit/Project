@@ -8,6 +8,7 @@ const checkAvailability = async ({ checkInDate, checkOutDate, room }) => {
   try {
     const bookings = await Booking.find({
       room,
+      status: { $ne: "cancelled" },
       checkInDate: { $lte: checkOutDate },
       checkOutDate: { $gte: checkInDate },
     });
@@ -38,31 +39,6 @@ export const createBooking = async (req, res) => {
     const { room, checkInDate, checkOutDate, guests } = req.body;
     const user = req.user._id;
 
-    // Validate inputs
-    if (!room || !checkInDate || !checkOutDate) {
-      return res.json({ success: false, message: "Missing booking details" });
-    }
-
-    const guestCount = +guests;
-    if (!guests || isNaN(guestCount) || guestCount < 1) {
-      return res.json({ success: false, message: "Guests must be at least 1" });
-    }
-
-    const checkInTest = new Date(checkInDate);
-    const checkOutTest = new Date(checkOutDate);
-    if (isNaN(checkInTest) || isNaN(checkOutTest)) {
-      return res.json({ success: false, message: "Invalid check-in or check-out date" });
-    }
-    if (checkOutTest <= checkInTest) {
-      return res.json({ success: false, message: "Check-out date must be after check-in date" });
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (checkInTest < today) {
-      return res.json({ success: false, message: "Check-in date cannot be in the past" });
-    }
-
     // Before Booking Check Availability
     const isAvailable = await checkAvailability({
       checkInDate,
@@ -76,10 +52,6 @@ export const createBooking = async (req, res) => {
 
     // Get totalPrice from Room
     const roomData = await Room.findById(room).populate("hotel");
-    if (!roomData) {
-      return res.json({ success: false, message: "Room not found" });
-    }
-
     let totalPrice = roomData.pricePerNight;
 
     // Calculate totalPrice based on nights
@@ -94,7 +66,7 @@ export const createBooking = async (req, res) => {
       user,
       room,
       hotel: roomData.hotel._id,
-      guests: guestCount,
+      guests: +guests,
       checkInDate,
       checkOutDate,
       totalPrice,
@@ -149,12 +121,14 @@ export const getUserBookings = async (req, res) => {
 // API to get all bookings for a hotel (owner dashboard)
 export const getHotelBookings = async (req, res) => {
   try {
-    const hotel = await Hotel.findOne({ owner: req.auth().userId });
-    if (!hotel) {
-      return res.json({ success: false, message: "No Hotel found" });
+    // Only the site admin account can view the dashboard's bookings.
+    if (req.auth().userId !== process.env.OWNER_ACCOUNT_ID) {
+      return res.json({ success: false, message: "Not authorized" });
     }
 
-    const bookings = await Booking.find({ hotel: hotel._id }).populate("room hotel user").sort({ createdAt: -1 });
+    // Every booking made anywhere on the site shows up here, regardless
+    // of which (possibly test) hotel record it's technically tied to.
+    const bookings = await Booking.find({}).populate("room hotel user").sort({ createdAt: -1 });
 
     // Exclude cancelled bookings from stats
     const activeBookings = bookings.filter(booking => booking.status !== 'cancelled');
@@ -182,9 +156,13 @@ export const cancelBooking = async (req, res) => {
       return res.json({ success: false, message: "Booking not found" });
     }
 
-    // Verify the logged-in user actually owns the hotel this booking belongs to
-    const hotel = await Hotel.findOne({ owner: req.auth().userId });
-    if (!hotel || booking.hotel.toString() !== hotel._id.toString()) {
+    // Allow either the site admin, or the customer who made the booking,
+    // to cancel it.
+    const callerId = req.auth().userId;
+    const isAdmin = callerId === process.env.OWNER_ACCOUNT_ID;
+    const isOwnBooking = booking.user.toString() === callerId;
+
+    if (!isAdmin && !isOwnBooking) {
       return res.json({ success: false, message: "Not authorized to cancel this booking" });
     }
 
@@ -208,9 +186,8 @@ export const deleteBooking = async (req, res) => {
       return res.json({ success: false, message: "Booking not found" });
     }
 
-    // Verify the logged-in user actually owns the hotel this booking belongs to
-    const hotel = await Hotel.findOne({ owner: req.auth().userId });
-    if (!hotel || booking.hotel.toString() !== hotel._id.toString()) {
+    // Only the site admin can permanently delete a booking record.
+    if (req.auth().userId !== process.env.OWNER_ACCOUNT_ID) {
       return res.json({ success: false, message: "Not authorized to delete this booking" });
     }
 

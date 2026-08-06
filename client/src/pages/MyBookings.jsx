@@ -57,6 +57,22 @@ const MyBookings = () => {
       }
     }
 
+    const cancelBooking = async (bookingId) => {
+      try {
+        const { data } = await axios.post('/api/bookings/cancel', { bookingId }, {
+          headers: { Authorization: `Bearer ${await getToken()}` }
+        });
+        if (data.success) {
+          toast.success(data.message)
+          fetchUserBookings()
+        } else {
+          toast.error(data.message)
+        }
+      } catch (error) {
+        toast.error(error.message)
+      }
+    }
+
     useEffect(()=>{
         if(user){
             fetchUserBookings()
@@ -120,16 +136,23 @@ const MyBookings = () => {
         {/* ------ Payent Status ---- */}
         <div className='flex flex-col items-start justify-center pt-3'>
     <div className='flex items-center gap-2'>
-        <div className={`h-3 w-3 rounded-full ${booking.isPaid ?
-        "bg-green-500" : "bg-red-500"}`}></div>
-        <p className={`text-sm ${booking.isPaid ? "text-green-500" : 
-        "text-red-500"}`}>
-            {booking.isPaid ? "Paid" : "Unpaid"}
+        <div className={`h-3 w-3 rounded-full ${
+          booking.status === 'cancelled' ? "bg-gray-400" :
+          booking.isPaid ? "bg-green-500" : "bg-red-500"}`}></div>
+        <p className={`text-sm ${
+          booking.status === 'cancelled' ? "text-gray-400" :
+          booking.isPaid ? "text-green-500" : "text-red-500"}`}>
+            {booking.status === 'cancelled' ? "Cancelled" : booking.isPaid ? "Paid" : "Unpaid"}
         </p>
     </div>
-    {!booking.isPaid && (
+    {booking.status !== 'cancelled' && !booking.isPaid && (
     <button onClick={() => payWithEsewa(booking._id)} className='px-4 py-1.5 mt-4 text-xs border border-gray-400 rounded-full hover:bg-gray-50 transition-all cursor-pointer'>
         Pay Now
+    </button>
+)}
+    {booking.status !== 'cancelled' && (
+    <button onClick={() => cancelBooking(booking._id)} className='px-4 py-1.5 mt-2 text-xs border border-red-300 text-red-500 rounded-full hover:bg-red-50 transition-all cursor-pointer'>
+        Cancel Booking
     </button>
 )}
 
