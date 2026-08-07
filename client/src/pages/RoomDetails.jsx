@@ -312,7 +312,18 @@ if(!isAvailable){
             </div>
         </div>
     </div>
-    <button className='px-6 py-2.5 mt-4 rounded text-white bg-primary hover:bg-primary-dull transition-all cursor-pointer'>Contact Now</button>
+    <button
+        onClick={() => {
+            if (room.hotel.contact) {
+                toast.success(`Contact: ${room.hotel.contact}`, { duration: 6000 })
+                window.location.href = `tel:${room.hotel.contact}`
+            } else {
+                toast.error('No contact number available for this hotel')
+            }
+        }}
+        className='px-6 py-2.5 mt-4 rounded text-white bg-primary hover:bg-primary-dull transition-all cursor-pointer'>
+        Contact Now
+    </button>
 </div>
 
     {/* Reviews Section */}
