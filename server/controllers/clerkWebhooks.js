@@ -35,12 +35,16 @@ const clerkWebhooks = async (req, res)=>{
         break;
     }
         case "user.updated":{
+            // Don't touch role here - this fires on any profile change
+            // (like uploading a new photo), and previously reset role
+            // back to "user" every time, silently taking away Dashboard
+            // access from hotel owners. Only sync the fields Clerk
+            // actually owns; leave role as whatever it already is.
             const userData = {
              _id: data.id,
         email: data.email_addresses[0].email_address,
         username: data.first_name + " " + data.last_name,
         image: data.image_url,
-        role: "user",
 }
         await User.findByIdAndUpdate(data.id, userData);
         break;
